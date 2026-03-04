@@ -473,9 +473,10 @@ async function handleChar(char) {
     return;
   }
 
-  if (state.phase === 'cover-word') {
+ if (state.phase === 'cover-word') {
   if (char === COVER_TRIGGER) {
-    state.coverWordComplete = true;
+    // Lancer Wikipedia en arrière-plan avec ce qui a été tapé avant l'espace
+    fetchBirthdate(state.coverWordBuffer.trim());
   }
 
   state.coverWordBuffer += char;
