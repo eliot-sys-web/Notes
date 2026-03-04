@@ -474,7 +474,10 @@ async function handleChar(char) {
   }
 
   if (state.phase === 'cover-word') {
-  // Chaque frappe (y compris espace) avance d'une lettre dans COVER_TEXT
+  if (char === COVER_TRIGGER) {
+    state.coverWordComplete = true;
+  }
+
   state.coverWordBuffer += char;
 
   if (state.coverDisplayIndex < COVER_TEXT.length) {
@@ -485,12 +488,12 @@ async function handleChar(char) {
     return;
   }
 
-  // Tout le cover text est affiché → on passe en phase free
   state.phase = 'free';
   state.freeBuffer = '';
   saveCurrentNote();
   return;
 }
+
 // === PHASE DATE-TYPING : chaque touche = lettre suivante de la date ===
   if (state.phase === 'date-typing') {
     if (state.dateDisplayIndex < state.dateBuffer.length) {
