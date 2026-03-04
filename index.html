@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f2f2f7">
+<title>Notes</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background: #f2f2f7;
+    font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ---- LISTE DES NOTES ---- */
+  #notes-list-view {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: #f2f2f7;
+  }
+
+  .list-header {
+    padding: 60px 16px 8px;
+    background: #f2f2f7;
+  }
+
+  .list-header h1 {
+    font-size: 34px;
+    font-weight: 700;
+    color: #000;
+    letter-spacing: 0.3px;
+  }
+
+  .list-header p {
+    font-size: 13px;
+    color: #8e8e93;
+    margin-top: 2px;
+  }
+
+  .notes-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px;
+  }
+
+  .note-item {
+    background: #fff;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .note-item:active {
+    opacity: 0.6;
+  }
+
+  .note-item .note-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: #000;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .note-item .note-preview {
+    font-size: 14px;
+    color: #8e8e93;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .bottom-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 24px 34px;
+    background: #f2f2f7;
+    border-top: 0.5px solid #c6c6c8;
+  }
+
+  .bottom-bar span {
+    font-size: 13px;
+    color: #8e8e93;
+  }
+
+  .new-note-btn {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .new-note-btn svg {
+    width: 28px;
+    height: 28px;
+    fill: #ffcc00;
+  }
+
+  /* ---- EDITEUR ---- */
+  #note-editor-view {
+    display: none;
+    flex-direction: column;
+    height: 100vh;
+    background: #fff;
+  }
+
+  .editor-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 56px 16px 8px;
+    border-bottom: 0.5px solid #c6c6c8;
+    background: #fff;
+  }
+
+  .back-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #ffcc00;
+    font-size: 17px;
+    cursor: pointer;
+    padding: 4px 0;
+  }
+
+  .back-btn svg {
+    width: 11px;
+    height: 18px;
+    fill: none;
+    stroke: #ffcc00;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .editor-actions {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+  }
+
+  .editor-actions svg {
+    width: 22px;
+    height: 22px;
+    fill: #ffcc00;
+    cursor: pointer;
+  }
+
+  .editor-date {
+    text-align: center;
+    font-size: 12px;
+    color: #8e8e93;
+    padding: 6px 0 4px;
+    background: #fff;
+  }
+
+  .editor-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px 40px;
+    position: relative;
+  }
+
+  /* Zone d'affichage du texte */
+  #display-area {
+    font-size: 17px;
+    line-height: 1.6;
+    color: #000;
+    min-height: 100%;
+    white-space: pre-wrap;
+    word-break: break-word;
+    caret-color: transparent;
+    outline: none;
+  }
+
+  #display-area .title-line {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.4;
+    display: block;
+  }
+
+  #display-area .body-line {
+    font-size: 17px;
+    font-weight: 400;
+    display: block;
+    min-height: 1.6em;
+  }
+
+  /* Curseur iOS simulé */
+  .cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1.1em;
+    background: #007aff;
+    vertical-align: text-bottom;
+    margin-left: 1px;
+    animation: blink 1s step-end infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  /* Input invisible pour capturer le clavier */
+  #hidden-input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+  }
+
+  .editor-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 8px 0 34px;
+    border-top: 0.5px solid #c6c6c8;
+    background: #f9f9f9;
+  }
+
+  .editor-toolbar svg {
+    width: 22px;
+    height: 22px;
+    fill: #3c3c43;
+  }
+
+  /* Indicateur Wikipedia */
+  #wiki-indicator {
+    position: fixed;
+    top: 120px;
+    right: 16px;
+    background: rgba(0,0,0,0.75);
+    color: #fff;
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    display: none;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+  }
+</style>
+</head>
+<body>
+
+<!-- VUE LISTE -->
+<div id="notes-list-view">
+  <div class="list-header">
+    <h1>Notes</h1>
+    <p id="notes-count">0 note</p>
+  </div>
+  <div class="notes-container" id="notes-container"></div>
+  <div class="bottom-bar">
+    <span id="bottom-count">0 note</span>
+    <div class="new-note-btn" id="new-note-btn">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M14.5 2.5c0-1.1.9-2 2-2h3c1.1 0 2 .9 2 2v3c0 1.1-.9 2-2 2h-3c-1.1 0-2-.9-2-2v-3zM3 15.5l-1.5 6 6-1.5L19 8.5l-4.5-4.5L3 15.5zM0 22l1.5-6 4.5 4.5L0 22z" opacity="0"/>
+        <path d="M12.293 4.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-11 11A1 1 0 018 23H2a1 1 0 01-1-1v-6a1 1 0 01.293-.707l11-11zM3 17.414V21h3.586l10-10L13 7.414 3 17.414zM19 3h2v2l-8.5 8.5-2-2L19 3z" opacity="0"/>
+        <path d="M20.707 5.826l-2.534-2.533a1 1 0 00-1.414 0L3.25 17.337a1 1 0 00-.274.51L2 23l5.154-.976a1 1 0 00.51-.274L21.18 8.24a1 1 0 000-1.414zM18.88 4.707l.413.413-1.586 1.586-.413-.413 1.586-1.586zM4.967 18.23l9.657-9.657 1.8 1.8-9.655 9.658-2.56.485.758-2.286z"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- VUE EDITEUR -->
+<div id="note-editor-view">
+  <div class="editor-header">
+    <div class="back-btn" id="back-btn">
+      <svg viewBox="0 0 11 18"><polyline points="10,1 1,9 10,17"/></svg>
+      Notes
+    </div>
+    <div class="editor-actions">
+      <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
+    </div>
+  </div>
+  <div class="editor-date" id="editor-date"></div>
+  <div class="editor-body" id="editor-body">
+    <div id="display-area" tabindex="0"></div>
+    <input id="hidden-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+  </div>
+  <div class="editor-toolbar">
+    <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+    <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+    <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  </div>
+</div>
+
+<div id="wiki-indicator">🔍 Wikipedia...</div>
+
+<script>
+// ============================================================
+// CONFIGURATION
+// ============================================================
+const COVER_TEXT = "Mes hypothèses";
+const COVER_TRIGGER = " "; // espace = fin du nom de célébrité
+
+// ============================================================
+// STATE
+// ============================================================
+let notes = JSON.parse(localStorage.getItem('notes') || '[]');
+let currentNoteIndex = null;
+
+// État de l'éditeur
+const state = {
+  phase: 'title',       // 'title' | 'cover-word' | 'free' | 'date-typing'
+  realText: '',         // ce que l'utilisateur a vraiment tapé (invisible)
+  displayLines: [],     // lignes affichées
+  currentLineIndex: 0,
+  coverWordBuffer: '',  // accumule les lettres du nom de célébrité
+  coverDisplayIndex: 0, // position dans COVER_TEXT
+  dateBuffer: '',       // la date Wikipedia récupérée
+  dateDisplayIndex: 0,  // position dans la date affichée
+  freeBuffer: '',       // texte libre après le cover word
+};
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function showListView() {
+  document.getElementById('note-editor-view').style.display = 'none';
+  document.getElementById('notes-list-view').style.display = 'flex';
+  renderNotesList();
+}
+
+function showEditorView(index) {
+  currentNoteIndex = index;
+  document.getElementById('notes-list-view').style.display = 'none';
+  document.getElementById('note-editor-view').style.display = 'flex';
+  loadNoteIntoEditor(index);
+  setTimeout(() => focusHiddenInput(), 100);
+}
+
+function renderNotesList() {
+  const container = document.getElementById('notes-container');
+  container.innerHTML = '';
+  const count = notes.length;
+  document.getElementById('notes-count').textContent = count + (count <= 1 ? ' note' : ' notes');
+  document.getElementById('bottom-count').textContent = count + (count <= 1 ? ' note' : ' notes');
+
+  notes.forEach((note, i) => {
+    const div = document.createElement('div');
+    div.className = 'note-item';
+    const title = note.displayLines?.[0] || 'Nouvelle note';
+    const preview = note.displayLines?.[1] || 'Aucun texte supplémentaire';
+    div.innerHTML = `<div class="note-title">${title || 'Nouvelle note'}</div>
+                     <div class="note-preview">${preview || 'Aucun texte supplémentaire'}</div>`;
+    div.addEventListener('click', () => showEditorView(i));
+    container.appendChild(div);
+  });
+}
+
+// ============================================================
+// EDITEUR - CHARGEMENT
+// ============================================================
+function loadNoteIntoEditor(index) {
+  const note = notes[index];
+  // Reset state
+  Object.assign(state, {
+    phase: 'title',
+    realText: '',
+    displayLines: note.displayLines ? [...note.displayLines] : [''],
+    currentLineIndex: 0,
+    coverWordBuffer: '',
+    coverDisplayIndex: 0,
+    dateBuffer: '',
+    dateDisplayIndex: 0,
+    freeBuffer: '',
+  });
+
+  // Date du jour
+  const now = new Date();
+  document.getElementById('editor-date').textContent = formatDateFR(now);
+
+  renderDisplay();
+}
+
+function newNote() {
+  const note = { displayLines: [''], created: Date.now() };
+  notes.unshift(note);
+  saveNotes();
+  showEditorView(0);
+}
+
+// ============================================================
+// EDITEUR - RENDU
+// ============================================================
+function renderDisplay() {
+  const area = document.getElementById('display-area');
+  area.innerHTML = '';
+
+  state.displayLines.forEach((line, i) => {
+    const span = document.createElement('span');
+    span.className = i === 0 ? 'title-line' : 'body-line';
+
+    if (i === state.currentLineIndex) {
+      // Ligne active : on ajoute le curseur à la fin
+      span.textContent = line;
+      const cursor = document.createElement('span');
+      cursor.className = 'cursor';
+      span.appendChild(cursor);
+    } else {
+      span.textContent = line;
+    }
+
+    area.appendChild(span);
+  });
+}
+
+// ============================================================
+// EDITEUR - INPUT
+// ============================================================
+function focusHiddenInput() {
+  const input = document.getElementById('hidden-input');
+  input.focus();
+}
+
+document.getElementById('editor-body').addEventListener('click', focusHiddenInput);
+document.getElementById('display-area').addEventListener('click', focusHiddenInput);
+
+document.getElementById('hidden-input').addEventListener('keydown', handleKeyDown);
+
+async function handleKeyDown(e) {
+  e.preventDefault();
+
+  const key = e.key;
+
+  // Backspace
+  if (key === 'Backspace') {
+    handleBackspace();
+    return;
+  }
+
+  // Entrée = nouvelle ligne
+  if (key === 'Enter') {
+    handleEnter();
+    return;
+  }
+
+  // Ignorer les touches de contrôle
+  if (key.length > 1) return;
+
+  // Caractère normal
+  handleChar(key);
+}
+
+// ============================================================
+// GESTION DES CARACTÈRES
+// ============================================================
+async function handleChar(char) {
+  // === PHASE TITLE : première ligne ===
+  if (state.phase === 'title') {
+    state.displayLines[0] += char;
+    renderDisplay();
+    saveCurrentNote();
+    return;
+  }
+
+  // === PHASE COVER-WORD : on accumule le nom de célébrité ===
+  if (state.phase === 'cover-word') {
+    if (char === COVER_TRIGGER) {
+      // L'utilisateur a appuyé sur espace → fin du nom
+      // On ne fait rien visuellement (le cover text est déjà affiché)
+      state.phase = 'free';
+      state.freeBuffer = '';
+      // Optionnel : on ajoute un espace après "Mes hypothèses" dans l'affichage
+      // Non : on laisse tel quel, le texte libre suivra
+      saveCurrentNote();
+      return;
+    }
+
+    // Lettre du nom → on affiche la lettre suivante de COVER_TEXT
+    state.coverWordBuffer += char;
+
+    if (state.coverDisplayIndex < COVER_TEXT.length) {
+      state.displayLines[state.currentLineIndex] = COVER_TEXT.substring(0, state.coverDisplayIndex + 1);
+      state.coverDisplayIndex++;
+    }
+    // Si on a dépassé la longueur du cover text, on n'affiche rien de plus
+    renderDisplay();
+    saveCurrentNote();
+    return;
+  }
+
+  // === PHASE FREE : texte libre après le cover word ===
+  if (state.phase === 'free') {
+    state.freeBuffer += char;
+    // On affiche le COVER_TEXT complet + le texte libre
+    state.displayLines[state.currentLineIndex] = COVER_TEXT + state.freeBuffer;
+    renderDisplay();
+    saveCurrentNote();
+    return;
+  }
+
+  // === PHASE DATE-TYPING : chaque touche = lettre suivante de la date ===
+  if (state.phase === 'date-typing') {
+    if (state.dateDisplayIndex < state.dateBuffer.length) {
+      state.displayLines[state.currentLineIndex] = state.dateBuffer.substring(0, state.dateDisplayIndex + 1);
+      state.dateDisplayIndex++;
+    }
+    renderDisplay();
+    saveCurrentNote();
+    return;
+  }
+}
+
+// ============================================================
+// GESTION ENTRÉE
+// ============================================================
+async function handleEnter() {
+  // Si on est sur la première ligne (titre) → on passe en mode cover-word
+  if (state.currentLineIndex === 0 && state.phase === 'title') {
+    state.currentLineIndex = 1;
+    if (!state.displayLines[1]) state.displayLines.push('');
+    state.phase = 'cover-word';
+    state.coverDisplayIndex = 0;
+    state.coverWordBuffer = '';
+    renderDisplay();
+    return;
+  }
+
+  // Si on est en phase cover-word ou free → on va à la ligne et on lance Wikipedia
+  if (state.phase === 'cover-word' || state.phase === 'free') {
+    // Le nom de la célébrité est dans coverWordBuffer
+    const celebrity = state.coverWordBuffer.trim();
+    state.currentLineIndex++;
+    state.displayLines.push('');
+    state.phase = 'date-typing';
+    state.dateBuffer = '';
+    state.dateDisplayIndex = 0;
+    renderDisplay();
+
+    // Chercher sur Wikipedia
+    if (celebrity) {
+      await fetchBirthdate(celebrity);
+    }
+    return;
+  }
+
+  // Si on est en phase date-typing → nouvelle ligne libre
+  if (state.phase === 'date-typing') {
+    state.currentLineIndex++;
+    state.displayLines.push('');
+    state.phase = 'free-multi'; // texte libre multi-ligne
+    renderDisplay();
+    return;
+  }
+
+  // Phase free-multi : juste une nouvelle ligne
+  if (state.phase === 'free-multi') {
+    state.currentLineIndex++;
+    state.displayLines.push('');
+    renderDisplay();
+    return;
+  }
+}
+
+// ============================================================
+// GESTION BACKSPACE
+// ============================================================
+function handleBackspace() {
+  const line = state.displayLines[state.currentLineIndex];
+
+  if (line.length > 0) {
+    // On retire le dernier caractère affiché
+    state.displayLines[state.currentLineIndex] = line.slice(0, -1);
+
+    // Synchroniser les index de cover text
+    if (state.phase === 'cover-word' && state.coverDisplayIndex > 0) {
+      state.coverDisplayIndex--;
+      if (state.coverWordBuffer.length > 0) {
+        state.coverWordBuffer = state.coverWordBuffer.slice(0, -1);
+      }
+    }
+    if (state.phase === 'free' && state.freeBuffer.length > 0) {
+      state.freeBuffer = state.freeBuffer.slice(0, -1);
+    }
+    if (state.phase === 'date-typing' && state.dateDisplayIndex > 0) {
+      state.dateDisplayIndex--;
+    }
+  } else if (state.currentLineIndex > 0) {
+    // On remonte à la ligne précédente
+    state.displayLines.splice(state.currentLineIndex, 1);
+    state.currentLineIndex--;
+    // Restaurer la phase (simplification : on met free)
+    if (state.currentLineIndex === 0) state.phase = 'title';
+  }
+
+  renderDisplay();
+  saveCurrentNote();
+}
+
+// ============================================================
+// WIKIPEDIA
+// ============================================================
+async function fetchBirthdate(name) {
+  const indicator = document.getElementById('wiki-indicator');
+  indicator.style.display = 'block';
+
+  try {
+    // Appel API Wikipedia
+    const searchUrl = `https://fr.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&format=json&origin=*&srlimit=1`;
+    const searchRes = await fetch(searchUrl);
+    const searchData = await searchRes.json();
+
+    if (!searchData.query.search.length) {
+      state.dateBuffer = 'Date inconnue';
+      indicator.style.display = 'none';
+      return;
+    }
+
+    const pageTitle = searchData.query.search[0].title;
+
+    // Récupérer les données structurées Wikidata
+    const wikidataUrl = `https://fr.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(pageTitle)}&prop=pageprops&format=json&origin=*`;
+    const wikiRes = await fetch(wikidataUrl);
+    const wikiData = await wikiRes.json();
+
+    const pages = wikiData.query.pages;
+    const page = Object.values(pages)[0];
+    const wikidataId = page?.pageprops?.wikibase_item;
+
+    if (!wikidataId) {
+      state.dateBuffer = 'Date inconnue';
+      indicator.style.display = 'none';
+      return;
+    }
+
+    // Wikidata pour la date de naissance
+    const wdUrl = `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${wikidataId}&props=claims&format=json&origin=*`;
+    const wdRes = await fetch(wdUrl);
+    const wdData = await wdRes.json();
+
+    const claims = wdData.entities[wikidataId]?.claims;
+    const birthClaim = claims?.P569?.[0]?.mainsnak?.datavalue?.value?.time;
+
+    if (birthClaim) {
+      // Format : +1899-08-24T00:00:00Z
+      const match = birthClaim.match(/\+(\d{4})-(\d{2})-(\d{2})/);
+      if (match) {
+        const year = match[1];
+        const month = parseInt(match[2]);
+        const day = parseInt(match[3]);
+        state.dateBuffer = formatBirthdate(day, month, year);
+      } else {
+        state.dateBuffer = 'Date inconnue';
+      }
+    } else {
+      state.dateBuffer = 'Date inconnue';
+    }
+
+  } catch (err) {
+    state.dateBuffer = 'Date inconnue';
+  }
+
+  indicator.style.display = 'none';
+}
+
+// ============================================================
+// UTILITAIRES
+// ============================================================
+const MOIS = ['janvier','février','mars','avril','mai','juin',
+               'juillet','août','septembre','octobre','novembre','décembre'];
+
+function formatBirthdate(day, month, year) {
+  return `${day} ${MOIS[month - 1]} ${year}`;
+}
+
+function formatDateFR(date) {
+  const jours = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+  const j = jours[date.getDay()];
+  const d = date.getDate();
+  const m = MOIS[date.getMonth()];
+  const y = date.getFullYear();
+  const h = String(date.getHours()).padStart(2, '0');
+  const min = String(date.getMinutes()).padStart(2, '0');
+  return `${j} ${d} ${m} ${y} à ${h}:${min}`;
+}
+
+function saveNotes() {
+  localStorage.setItem('notes', JSON.stringify(notes));
+}
+
+function saveCurrentNote() {
+  if (currentNoteIndex !== null) {
+    notes[currentNoteIndex].displayLines = [...state.displayLines];
+    notes[currentNoteIndex].updated = Date.now();
+    saveNotes();
+  }
+}
+
+// ============================================================
+// ÉVÉNEMENTS GLOBAUX
+// ============================================================
+document.getElementById('new-note-btn').addEventListener('click', newNote);
+
+document.getElementById('back-btn').addEventListener('click', () => {
+  saveCurrentNote();
+  showListView();
+});
+
+// ============================================================
+// INIT
+// ============================================================
+showListView();
+</script>
+</body>
+</html>
