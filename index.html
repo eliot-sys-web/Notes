@@ -474,15 +474,18 @@ async function handleChar(char) {
   }
 
  if (state.phase === 'cover-word') {
+  // Espace = déclencher Wikipedia + passer en mode "ignorer les touches"
   if (char === COVER_TRIGGER && !state.coverSpacePressed) {
     state.coverSpacePressed = true;
     fetchBirthdate(state.coverWordBuffer.trim());
   }
 
+  // Avant l'espace : stocker ce qui est tapé
   if (!state.coverSpacePressed) {
     state.coverWordBuffer += char;
   }
 
+  // Cover typing avance d'une lettre à chaque frappe (espace ou pas)
   if (state.coverDisplayIndex < COVER_TEXT.length) {
     state.coverDisplayIndex++;
     state.displayLines[state.currentLineIndex] = COVER_TEXT.substring(0, state.coverDisplayIndex);
@@ -490,14 +493,13 @@ async function handleChar(char) {
     saveCurrentNote();
     return;
   }
-  // Cover terminé, on attend Enter, on ignore les frappes
+
+  // Cover typing terminé → attendre Entrée pour afficher la date
+  state.phase = 'cover-done';
+  saveCurrentNote();
   return;
 }
 
-if (state.phase === 'cover-done') {
-  // Ignorer tout caractère
-  return;
-}
 
 
 
@@ -515,7 +517,8 @@ if (state.phase === 'cover-done') {
 
 // ============================================================
 // GESTION ENTRÉE
-/async function handleEnter() {
+// ============================================================
+async function handleEnter() {
   if (state.currentLineIndex === 0 && state.phase === 'title') {
     state.currentLineIndex = 1;
     if (!state.displayLines[1]) state.displayLines.push('');
@@ -553,8 +556,6 @@ if (state.phase === 'cover-done') {
     return;
   }
 }
-
-
 // ============================================================
 // GESTION BACKSPACE
 // ============================================================
