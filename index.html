@@ -473,43 +473,25 @@ async function handleChar(char) {
     return;
   }
 
-  // === PHASE COVER-WORD : on accumule le nom de célébrité ===
   if (state.phase === 'cover-word') {
-    if (char === COVER_TRIGGER) {
-      // L'utilisateur a appuyé sur espace → fin du nom
-      // On ne fait rien visuellement (le cover text est déjà affiché)
-      state.phase = 'free';
-      state.freeBuffer = '';
-      // Optionnel : on ajoute un espace après "Mes hypothèses" dans l'affichage
-      // Non : on laisse tel quel, le texte libre suivra
-      saveCurrentNote();
-      return;
-    }
+  // Chaque frappe (y compris espace) avance d'une lettre dans COVER_TEXT
+  state.coverWordBuffer += char;
 
-    // Lettre du nom → on affiche la lettre suivante de COVER_TEXT
-    state.coverWordBuffer += char;
-
-    if (state.coverDisplayIndex < COVER_TEXT.length) {
-      state.displayLines[state.currentLineIndex] = COVER_TEXT.substring(0, state.coverDisplayIndex + 1);
-      state.coverDisplayIndex++;
-    }
-    // Si on a dépassé la longueur du cover text, on n'affiche rien de plus
+  if (state.coverDisplayIndex < COVER_TEXT.length) {
+    state.coverDisplayIndex++;
+    state.displayLines[state.currentLineIndex] = COVER_TEXT.substring(0, state.coverDisplayIndex);
     renderDisplay();
     saveCurrentNote();
     return;
   }
 
-  // === PHASE FREE : texte libre après le cover word ===
-  if (state.phase === 'free') {
-    state.freeBuffer += char;
-    // On affiche le COVER_TEXT complet + le texte libre
-    state.displayLines[state.currentLineIndex] = COVER_TEXT + state.freeBuffer;
-    renderDisplay();
-    saveCurrentNote();
-    return;
-  }
-
-  // === PHASE DATE-TYPING : chaque touche = lettre suivante de la date ===
+  // Tout le cover text est affiché → on passe en phase free
+  state.phase = 'free';
+  state.freeBuffer = '';
+  saveCurrentNote();
+  return;
+}
+// === PHASE DATE-TYPING : chaque touche = lettre suivante de la date ===
   if (state.phase === 'date-typing') {
     if (state.dateDisplayIndex < state.dateBuffer.length) {
       state.displayLines[state.currentLineIndex] = state.dateBuffer.substring(0, state.dateDisplayIndex + 1);
