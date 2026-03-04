@@ -474,18 +474,15 @@ async function handleChar(char) {
   }
 
  if (state.phase === 'cover-word') {
-  // Espace = déclencher Wikipedia + passer en mode "ignorer les touches"
   if (char === COVER_TRIGGER && !state.coverSpacePressed) {
     state.coverSpacePressed = true;
     fetchBirthdate(state.coverWordBuffer.trim());
   }
 
-  // Avant l'espace : stocker ce qui est tapé
   if (!state.coverSpacePressed) {
     state.coverWordBuffer += char;
   }
 
-  // Cover typing avance d'une lettre à chaque frappe (espace ou pas)
   if (state.coverDisplayIndex < COVER_TEXT.length) {
     state.coverDisplayIndex++;
     state.displayLines[state.currentLineIndex] = COVER_TEXT.substring(0, state.coverDisplayIndex);
@@ -493,21 +490,15 @@ async function handleChar(char) {
     saveCurrentNote();
     return;
   }
-
-  // Cover typing terminé → attendre Entrée pour afficher la date
-  state.phase = 'cover-done';
-  saveCurrentNote();
+  // Cover terminé, on attend Enter, on ignore les frappes
   return;
 }
 
 if (state.phase === 'cover-done') {
-  state.currentLineIndex++;
-  state.displayLines.push('');
-  state.phase = 'date-typing';
-  startDateTyping(); // votre fonction existante
-  renderDisplay();
+  // Ignorer tout caractère
   return;
 }
+
 
 
 // === PHASE DATE-TYPING : chaque touche = lettre suivante de la date ===
@@ -524,47 +515,37 @@ if (state.phase === 'cover-done') {
 
 // ============================================================
 // GESTION ENTRÉE
-// ============================================================
-async function handleEnter() {
-  // Si on est sur la première ligne (titre) → on passe en mode cover-word
+/async function handleEnter() {
   if (state.currentLineIndex === 0 && state.phase === 'title') {
     state.currentLineIndex = 1;
     if (!state.displayLines[1]) state.displayLines.push('');
     state.phase = 'cover-word';
     state.coverDisplayIndex = 0;
     state.coverWordBuffer = '';
+    state.coverSpacePressed = false;
     renderDisplay();
     return;
   }
 
-  // Si on est en phase cover-word ou free → on va à la ligne et on lance Wikipedia
-  if (state.phase === 'cover-word' || state.phase === 'free') {
-    // Le nom de la célébrité est dans coverWordBuffer
-    const celebrity = state.coverWordBuffer.trim();
+  if (state.phase === 'cover-word') {
+    if (state.coverDisplayIndex < COVER_TEXT.length) return;
     state.currentLineIndex++;
     state.displayLines.push('');
     state.phase = 'date-typing';
     state.dateBuffer = '';
     state.dateDisplayIndex = 0;
     renderDisplay();
-
-    // Chercher sur Wikipedia
-    if (celebrity) {
-      await fetchBirthdate(celebrity);
-    }
     return;
   }
 
-  // Si on est en phase date-typing → nouvelle ligne libre
   if (state.phase === 'date-typing') {
     state.currentLineIndex++;
     state.displayLines.push('');
-    state.phase = 'free-multi'; // texte libre multi-ligne
+    state.phase = 'free-multi';
     renderDisplay();
     return;
   }
 
-  // Phase free-multi : juste une nouvelle ligne
   if (state.phase === 'free-multi') {
     state.currentLineIndex++;
     state.displayLines.push('');
@@ -572,6 +553,7 @@ async function handleEnter() {
     return;
   }
 }
+
 
 // ============================================================
 // GESTION BACKSPACE
