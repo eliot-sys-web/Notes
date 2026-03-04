@@ -1,8 +1,10 @@
 {
   "name": "Notes",
   "short_name": "Notes",
-  "start_url": "/",
-  "display": "standalone",
+  "start_url": "/Notes/?standalone=true/",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "scope": "/Notes",
   "background_color": "#f2f2f7",
   "theme_color": "#f2f2f7",
   "icons": [
