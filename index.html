@@ -531,18 +531,24 @@ async function handleEnter() {
     return;
   }
 
-  if (state.phase === 'cover-word') {
-    if (state.coverDisplayIndex < COVER_TEXT.length) return;
-    state.currentLineIndex++;
-    state.displayLines.push('');
-    state.phase = 'date-typing';
-    state.dateBuffer = '';
-    state.dateDisplayIndex = 0;
-    renderDisplay();
-    return;
+ if (state.phase === 'cover-word') {
+  if (state.coverDisplayIndex < COVER_TEXT.length) return;
+  
+  state.currentLineIndex++;
+  state.displayLines.push('');
+  state.phase = 'date-typing';
+  state.dateDisplayIndex = 0;
+  
+  // Si dateBuffer pas encore rempli, attendre Wikipedia
+  if (!state.dateBuffer) {
+    state.dateWaiting = true; // on attend la réponse
   }
+  
+  renderDisplay();
+  return;
+}
 
-  if (state.phase === 'date-typing') {
+ if (state.phase === 'date-typing') {
     state.currentLineIndex++;
     state.displayLines.push('');
     state.phase = 'free-multi';
@@ -654,9 +660,25 @@ async function fetchBirthdate(name) {
   } catch (err) {
     state.dateBuffer = 'Date inconnue';
   }
-
+if (state.dateWaiting) {
+  state.dateWaiting = false;
+  // Lancer automatiquement le cover typing lettre par lettre
+  autoTypeDate();
+}
   indicator.style.display = 'none';
 }
+function autoTypeDate() {
+  if (state.phase !== 'date-typing') return;
+  if (state.dateDisplayIndex >= state.dateBuffer.length) return;
+  
+  state.displayLines[state.currentLineIndex] = state.dateBuffer.substring(0, state.dateDisplayIndex + 1);
+  state.dateDisplayIndex++;
+  renderDisplay();
+  saveCurrentNote();
+  
+  setTimeout(autoTypeDate, 80);
+}
+
 
 // ============================================================
 // UTILITAIRES
