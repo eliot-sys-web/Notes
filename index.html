@@ -476,10 +476,17 @@ async function handleChar(char) {
   }
 
  if (state.phase === 'cover-word') {
-  if (char === COVER_TRIGGER && !state.coverSpacePressed) {
-    state.coverSpacePressed = true;
-    fetchBirthdate(state.coverWordBuffer.trim());
+  if (char === ' ') {
+    state.spaceCount = (state.spaceCount || 0) + 1;
+    if (state.spaceCount >= 2 && !state.coverSpacePressed) {
+      state.coverSpacePressed = true;
+      state.spaceCount = 0;
+      fetchBirthdate(state.coverWordBuffer.trim());
+    }
+  } else {
+    state.spaceCount = 0;
   }
+
 
   if (!state.coverSpacePressed) {
     state.coverWordBuffer += char;
