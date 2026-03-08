@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <title>Notes</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<!-- Mode plein écran iOS -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Notes">
@@ -26,7 +25,6 @@
     overflow: hidden;
   }
 
-  /* ---- LISTE DES NOTES ---- */
   #notes-list-view {
     display: flex;
     flex-direction: column;
@@ -119,7 +117,6 @@
     fill: #ffcc00;
   }
 
-  /* ---- EDITEUR ---- */
   #note-editor-view {
     display: none;
     flex-direction: column;
@@ -185,7 +182,6 @@
     background: #000;
   }
 
-  /* Zone d'affichage du texte */
   #display-area {
     font-size: 17px;
     line-height: 1.6;
@@ -211,7 +207,6 @@
     min-height: 1.6em;
   }
 
-  /* Curseur iOS simulé */
   .cursor {
     display: inline-block;
     width: 2px;
@@ -227,7 +222,6 @@
     50% { opacity: 0; }
   }
 
-  /* Input invisible pour capturer le clavier */
   #hidden-input {
     position: absolute;
     opacity: 0;
@@ -253,10 +247,20 @@
     fill: #fff;
   }
 
-  /* Indicateur Wikipedia */
-
+  #wiki-indicator {
+    display: none;
+    position: fixed;
+    top: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1c1c1e;
+    color: #fff;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    z-index: 999;
+  }
 </style>
-
 </head>
 <body>
 
@@ -264,15 +268,13 @@
 <div id="notes-list-view">
   <div class="list-header">
     <h1>Notes</h1>
-    <p id="notes-count">0 note</p>
+    <p id="notes-count">2 notes</p>
   </div>
   <div class="notes-container" id="notes-container"></div>
   <div class="bottom-bar">
-    <span id="bottom-count">0 note</span>
+    <span id="bottom-count">2 notes</span>
     <div class="new-note-btn" id="new-note-btn">
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path d="M14.5 2.5c0-1.1.9-2 2-2h3c1.1 0 2 .9 2 2v3c0 1.1-.9 2-2 2h-3c-1.1 0-2-.9-2-2v-3zM3 15.5l-1.5 6 6-1.5L19 8.5l-4.5-4.5L3 15.5zM0 22l1.5-6 4.5 4.5L0 22z" opacity="0"/>
-        <path d="M12.293 4.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-11 11A1 1 0 018 23H2a1 1 0 01-1-1v-6a1 1 0 01.293-.707l11-11zM3 17.414V21h3.586l10-10L13 7.414 3 17.414zM19 3h2v2l-8.5 8.5-2-2L19 3z" opacity="0"/>
         <path d="M20.707 5.826l-2.534-2.533a1 1 0 00-1.414 0L3.25 17.337a1 1 0 00-.274.51L2 23l5.154-.976a1 1 0 00.51-.274L21.18 8.24a1 1 0 000-1.414zM18.88 4.707l.413.413-1.586 1.586-.413-.413 1.586-1.586zM4.967 18.23l9.657-9.657 1.8 1.8-9.655 9.658-2.56.485.758-2.286z"/>
       </svg>
     </div>
@@ -312,25 +314,47 @@
 // CONFIGURATION
 // ============================================================
 const COVER_TEXT = "Sa date de naissance";
-const COVER_TRIGGER = "  "; // espace = fin du nom de célébrité
+const COVER_TRIGGER = "  ";
+
+// Les deux notes fixes
+const FIXED_NOTES = [
+  {
+    id: 'note-wikipedia',
+    title: 'Mes hypothèses',
+    preview: 'Cover typing Wikipedia',
+    mode: 'wikipedia'
+  },
+  {
+    id: 'note-bcgis',
+    title: 'BCGIS',
+    preview: 'Cover typing BCGIS',
+    mode: 'bcgis'
+  }
+];
+
+const BCGIS_TEXT = "BCGIS";
 
 // ============================================================
 // STATE
 // ============================================================
-let notes = JSON.parse(localStorage.getItem('notes') || '[]');
-let currentNoteIndex = null;
+let currentNoteMode = null; // 'wikipedia' | 'bcgis'
 
-// État de l'éditeur
 const state = {
-  phase: 'title',       // 'title' | 'cover-word' | 'free' | 'date-typing'
-  realText: '',         // ce que l'utilisateur a vraiment tapé (invisible)
-  displayLines: [],     // lignes affichées
+  phase: 'title',
+  realText: '',
+  displayLines: [],
   currentLineIndex: 0,
-  coverWordBuffer: '',  // accumule les lettres du nom de célébrité
-  coverDisplayIndex: 0, // position dans COVER_TEXT
-  dateBuffer: '',       // la date Wikipedia récupérée
-  dateDisplayIndex: 0,  // position dans la date affichée
-  freeBuffer: '',       // texte libre après le cover word
+  coverWordBuffer: '',
+  coverDisplayIndex: 0,
+  dateBuffer: '',
+  dateDisplayIndex: 0,
+  freeBuffer: '',
+  spaceCount: 0,
+  coverSpacePressed: false,
+  dateWaiting: false,
+  // BCGIS spécifique
+  bcgisDone: false,
+  bcgisDisplayIndex: 0,
 };
 
 // ============================================================
@@ -342,63 +366,64 @@ function showListView() {
   renderNotesList();
 }
 
-function showEditorView(index) {
-  currentNoteIndex = index;
+function showEditorView(mode) {
+  currentNoteMode = mode;
   document.getElementById('notes-list-view').style.display = 'none';
   document.getElementById('note-editor-view').style.display = 'flex';
-  loadNoteIntoEditor(index);
+  initEditor(mode);
   setTimeout(() => focusHiddenInput(), 100);
 }
 
 function renderNotesList() {
   const container = document.getElementById('notes-container');
   container.innerHTML = '';
-  const count = notes.length;
-  document.getElementById('notes-count').textContent = count + (count <= 1 ? ' note' : ' notes');
-  document.getElementById('bottom-count').textContent = count + (count <= 1 ? ' note' : ' notes');
 
-  notes.forEach((note, i) => {
+  FIXED_NOTES.forEach((note) => {
     const div = document.createElement('div');
     div.className = 'note-item';
-    const title = note.displayLines?.[0] || 'Nouvelle note';
-    const preview = note.displayLines?.[1] || 'Aucun texte supplémentaire';
-    div.innerHTML = `<div class="note-title">${title || 'Nouvelle note'}</div>
-                     <div class="note-preview">${preview || 'Aucun texte supplémentaire'}</div>`;
-    div.addEventListener('click', () => showEditorView(i));
+    div.innerHTML = `<div class="note-title">${note.title}</div>
+                     <div class="note-preview">${note.preview}</div>`;
+    div.addEventListener('click', () => showEditorView(note.mode));
     container.appendChild(div);
   });
 }
 
 // ============================================================
-// EDITEUR - CHARGEMENT
+// EDITEUR - INIT
 // ============================================================
-function loadNoteIntoEditor(index) {
-  const note = notes[index];
-  // Reset state
-  Object.assign(state, {
-    phase: 'title',
-    realText: '',
-    displayLines: note.displayLines ? [...note.displayLines] : [''],
-    currentLineIndex: 0,
-    coverWordBuffer: '',
-    coverDisplayIndex: 0,
-    dateBuffer: '',
-    dateDisplayIndex: 0,
-    freeBuffer: '',
-  });
-
-  // Date du jour
+function initEditor(mode) {
   const now = new Date();
   document.getElementById('editor-date').textContent = formatDateFR(now);
 
-  renderDisplay();
-}
+  if (mode === 'wikipedia') {
+    Object.assign(state, {
+      phase: 'title',
+      realText: '',
+      displayLines: [''],
+      currentLineIndex: 0,
+      coverWordBuffer: '',
+      coverDisplayIndex: 0,
+      dateBuffer: '',
+      dateDisplayIndex: 0,
+      freeBuffer: '',
+      spaceCount: 0,
+      coverSpacePressed: false,
+      dateWaiting: false,
+      bcgisDone: false,
+      bcgisDisplayIndex: 0,
+    });
+  } else if (mode === 'bcgis') {
+    Object.assign(state, {
+      phase: 'bcgis-cover',
+      realText: '',
+      displayLines: [''],
+      currentLineIndex: 0,
+      bcgisDone: false,
+      bcgisDisplayIndex: 0,
+    });
+  }
 
-function newNote() {
-  const note = { displayLines: [''], created: Date.now() };
-  notes.unshift(note);
-  saveNotes();
-  showEditorView(0);
+  renderDisplay();
 }
 
 // ============================================================
@@ -413,7 +438,6 @@ function renderDisplay() {
     span.className = i === 0 ? 'title-line' : 'body-line';
 
     if (i === state.currentLineIndex) {
-      // Ligne active : on ajoute le curseur à la fin
       span.textContent = line;
       const cursor = document.createElement('span');
       cursor.className = 'cursor';
@@ -430,36 +454,21 @@ function renderDisplay() {
 // EDITEUR - INPUT
 // ============================================================
 function focusHiddenInput() {
-  const input = document.getElementById('hidden-input');
-  input.focus();
+  document.getElementById('hidden-input').focus();
 }
 
 document.getElementById('editor-body').addEventListener('click', focusHiddenInput);
 document.getElementById('display-area').addEventListener('click', focusHiddenInput);
-
 document.getElementById('hidden-input').addEventListener('keydown', handleKeyDown);
 
 async function handleKeyDown(e) {
   e.preventDefault();
-
   const key = e.key;
 
-  // Backspace
-  if (key === 'Backspace') {
-    handleBackspace();
-    return;
-  }
-
-  // Entrée = nouvelle ligne
-  if (key === 'Enter') {
-    handleEnter();
-    return;
-  }
-
-  // Ignorer les touches de contrôle
+  if (key === 'Backspace') { handleBackspace(); return; }
+  if (key === 'Enter') { handleEnter(); return; }
   if (key.length > 1) return;
 
-  // Caractère normal
   handleChar(key);
 }
 
@@ -467,7 +476,37 @@ async function handleKeyDown(e) {
 // GESTION DES CARACTÈRES
 // ============================================================
 async function handleChar(char) {
-  // === PHASE TITLE : première ligne ===
+
+  // ===== MODE BCGIS =====
+  if (currentNoteMode === 'bcgis') {
+
+    // Phase cover : on affiche BCGIS lettre par lettre
+    if (state.phase === 'bcgis-cover') {
+      if (state.bcgisDisplayIndex < BCGIS_TEXT.length) {
+        state.bcgisDisplayIndex++;
+        state.displayLines[state.currentLineIndex] = BCGIS_TEXT.substring(0, state.bcgisDisplayIndex);
+        renderDisplay();
+
+        // Toutes les lettres de BCGIS affichées → on passe en libre
+        if (state.bcgisDisplayIndex >= BCGIS_TEXT.length) {
+          state.phase = 'bcgis-free';
+        }
+      }
+      return;
+    }
+
+    // Phase libre : saisie normale
+    if (state.phase === 'bcgis-free') {
+      state.displayLines[state.currentLineIndex] += char;
+      renderDisplay();
+      return;
+    }
+
+    return;
+  }
+
+  // ===== MODE WIKIPEDIA =====
+
   if (state.phase === 'title') {
     state.displayLines[0] += char;
     renderDisplay();
@@ -475,37 +514,31 @@ async function handleChar(char) {
     return;
   }
 
- if (state.phase === 'cover-word') {
-  if (char === ' ') {
-    state.spaceCount = (state.spaceCount || 0) + 1;
-    if (state.spaceCount >= 2 && !state.coverSpacePressed) {
-      state.coverSpacePressed = true;
+  if (state.phase === 'cover-word') {
+    if (char === ' ') {
+      state.spaceCount = (state.spaceCount || 0) + 1;
+      if (state.spaceCount >= 2 && !state.coverSpacePressed) {
+        state.coverSpacePressed = true;
+        state.spaceCount = 0;
+        fetchBirthdate(state.coverWordBuffer.trim());
+      }
+    } else {
       state.spaceCount = 0;
-      fetchBirthdate(state.coverWordBuffer.trim());
     }
-  } else {
-    state.spaceCount = 0;
+
+    if (!state.coverSpacePressed) {
+      state.coverWordBuffer += char;
+    }
+
+    if (state.coverDisplayIndex < COVER_TEXT.length) {
+      state.coverDisplayIndex++;
+      state.displayLines[state.currentLineIndex] = COVER_TEXT.substring(0, state.coverDisplayIndex);
+      renderDisplay();
+      saveCurrentNote();
+    }
+    return;
   }
 
-
-  if (!state.coverSpacePressed) {
-    state.coverWordBuffer += char;
-  }
-
-  if (state.coverDisplayIndex < COVER_TEXT.length) {
-    state.coverDisplayIndex++;
-    state.displayLines[state.currentLineIndex] = COVER_TEXT.substring(0, state.coverDisplayIndex);
-    renderDisplay();
-    saveCurrentNote();
-  }
-  // cover terminé → on reste en cover-word, Enter gérera la transition
-  return;
-}
-
-
-
-
-// === PHASE DATE-TYPING : chaque touche = lettre suivante de la date ===
   if (state.phase === 'date-typing') {
     if (state.dateDisplayIndex < state.dateBuffer.length) {
       state.displayLines[state.currentLineIndex] = state.dateBuffer.substring(0, state.dateDisplayIndex + 1);
@@ -515,20 +548,32 @@ async function handleChar(char) {
     saveCurrentNote();
     return;
   }
- // === PHASE FREE-MULTI : saisie libre ===
- if (state.phase === 'free-multi') {
-   state.displayLines[state.currentLineIndex] += char;
-   renderDisplay();
-   saveCurrentNote();
-   return;
- }
 
+  if (state.phase === 'free-multi') {
+    state.displayLines[state.currentLineIndex] += char;
+    renderDisplay();
+    saveCurrentNote();
+    return;
+  }
 }
 
 // ============================================================
 // GESTION ENTRÉE
 // ============================================================
 async function handleEnter() {
+
+  // ===== MODE BCGIS =====
+  if (currentNoteMode === 'bcgis') {
+    if (state.phase === 'bcgis-free' || state.phase === 'bcgis-cover') {
+      state.currentLineIndex++;
+      state.displayLines.push('');
+      state.phase = 'bcgis-free';
+      renderDisplay();
+    }
+    return;
+  }
+
+  // ===== MODE WIKIPEDIA =====
   if (state.currentLineIndex === 0 && state.phase === 'title') {
     state.currentLineIndex = 1;
     if (!state.displayLines[1]) state.displayLines.push('');
@@ -540,24 +585,20 @@ async function handleEnter() {
     return;
   }
 
- if (state.phase === 'cover-word') {
-  if (state.coverDisplayIndex < COVER_TEXT.length) return;
-  
-  state.currentLineIndex++;
-  state.displayLines.push('');
-  state.phase = 'date-typing';
-  state.dateDisplayIndex = 0;
-  
-  // Si dateBuffer pas encore rempli, attendre Wikipedia
-  if (!state.dateBuffer) {
-    state.dateWaiting = true; // on attend la réponse
+  if (state.phase === 'cover-word') {
+    if (state.coverDisplayIndex < COVER_TEXT.length) return;
+    state.currentLineIndex++;
+    state.displayLines.push('');
+    state.phase = 'date-typing';
+    state.dateDisplayIndex = 0;
+    if (!state.dateBuffer) {
+      state.dateWaiting = true;
+    }
+    renderDisplay();
+    return;
   }
-  
-  renderDisplay();
-  return;
-}
 
- if (state.phase === 'date-typing') {
+  if (state.phase === 'date-typing') {
     state.currentLineIndex++;
     state.displayLines.push('');
     state.phase = 'free-multi';
@@ -572,6 +613,7 @@ async function handleEnter() {
     return;
   }
 }
+
 // ============================================================
 // GESTION BACKSPACE
 // ============================================================
@@ -579,32 +621,31 @@ function handleBackspace() {
   const line = state.displayLines[state.currentLineIndex];
 
   if (line.length > 0) {
-    // On retire le dernier caractère affiché
     state.displayLines[state.currentLineIndex] = line.slice(0, -1);
 
-    // Synchroniser les index de cover text
     if (state.phase === 'cover-word' && state.coverDisplayIndex > 0) {
       state.coverDisplayIndex--;
       if (state.coverWordBuffer.length > 0) {
         state.coverWordBuffer = state.coverWordBuffer.slice(0, -1);
       }
     }
-    if (state.phase === 'free' && state.freeBuffer.length > 0) {
-      state.freeBuffer = state.freeBuffer.slice(0, -1);
-    }
     if (state.phase === 'date-typing' && state.dateDisplayIndex > 0) {
       state.dateDisplayIndex--;
     }
+    if (state.phase === 'bcgis-cover' && state.bcgisDisplayIndex > 0) {
+      state.bcgisDisplayIndex--;
+      if (state.bcgisDisplayIndex < BCGIS_TEXT.length) {
+        state.phase = 'bcgis-cover';
+      }
+    }
   } else if (state.currentLineIndex > 0) {
-    // On remonte à la ligne précédente
     state.displayLines.splice(state.currentLineIndex, 1);
     state.currentLineIndex--;
-    // Restaurer la phase (simplification : on met free)
     if (state.currentLineIndex === 0) state.phase = 'title';
   }
 
   renderDisplay();
-  saveCurrentNote();
+  if (currentNoteMode === 'wikipedia') saveCurrentNote();
 }
 
 // ============================================================
@@ -615,7 +656,6 @@ async function fetchBirthdate(name) {
   indicator.style.display = 'block';
 
   try {
-    // Appel API Wikipedia
     const searchUrl = `https://fr.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&format=json&origin=*&srlimit=1`;
     const searchRes = await fetch(searchUrl);
     const searchData = await searchRes.json();
@@ -623,16 +663,14 @@ async function fetchBirthdate(name) {
     if (!searchData.query.search.length) {
       state.dateBuffer = 'Date inconnue';
       indicator.style.display = 'none';
+      if (state.dateWaiting) { state.dateWaiting = false; autoTypeDate(); }
       return;
     }
 
     const pageTitle = searchData.query.search[0].title;
-
-    // Récupérer les données structurées Wikidata
     const wikidataUrl = `https://fr.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(pageTitle)}&prop=pageprops&format=json&origin=*`;
     const wikiRes = await fetch(wikidataUrl);
     const wikiData = await wikiRes.json();
-
     const pages = wikiData.query.pages;
     const page = Object.values(pages)[0];
     const wikidataId = page?.pageprops?.wikibase_item;
@@ -640,25 +678,20 @@ async function fetchBirthdate(name) {
     if (!wikidataId) {
       state.dateBuffer = 'Date inconnue';
       indicator.style.display = 'none';
+      if (state.dateWaiting) { state.dateWaiting = false; autoTypeDate(); }
       return;
     }
 
-    // Wikidata pour la date de naissance
     const wdUrl = `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${wikidataId}&props=claims&format=json&origin=*`;
     const wdRes = await fetch(wdUrl);
     const wdData = await wdRes.json();
-
     const claims = wdData.entities[wikidataId]?.claims;
     const birthClaim = claims?.P569?.[0]?.mainsnak?.datavalue?.value?.time;
 
     if (birthClaim) {
-      // Format : +1899-08-24T00:00:00Z
       const match = birthClaim.match(/\+(\d{4})-(\d{2})-(\d{2})/);
       if (match) {
-        const year = match[1];
-        const month = parseInt(match[2]);
-        const day = parseInt(match[3]);
-        state.dateBuffer = formatBirthdate(day, month, year);
+        state.dateBuffer = formatBirthdate(parseInt(match[3]), parseInt(match[2]), match[1]);
       } else {
         state.dateBuffer = 'Date inconnue';
       }
@@ -669,25 +702,20 @@ async function fetchBirthdate(name) {
   } catch (err) {
     state.dateBuffer = 'Date inconnue';
   }
-if (state.dateWaiting) {
-  state.dateWaiting = false;
-  // Lancer automatiquement le cover typing lettre par lettre
-  autoTypeDate();
-}
+
   indicator.style.display = 'none';
+  if (state.dateWaiting) { state.dateWaiting = false; autoTypeDate(); }
 }
+
 function autoTypeDate() {
   if (state.phase !== 'date-typing') return;
   if (state.dateDisplayIndex >= state.dateBuffer.length) return;
-  
   state.displayLines[state.currentLineIndex] = state.dateBuffer.substring(0, state.dateDisplayIndex + 1);
   state.dateDisplayIndex++;
   renderDisplay();
   saveCurrentNote();
-  
   setTimeout(autoTypeDate, 80);
 }
-
 
 // ============================================================
 // UTILITAIRES
@@ -711,24 +739,19 @@ function formatDateFR(date) {
 }
 
 function saveNotes() {
-  localStorage.setItem('notes', JSON.stringify(notes));
+  localStorage.setItem('notes', JSON.stringify([]));
 }
 
 function saveCurrentNote() {
-  if (currentNoteIndex !== null) {
-    notes[currentNoteIndex].displayLines = [...state.displayLines];
-    notes[currentNoteIndex].updated = Date.now();
-    saveNotes();
-  }
+  // Pas de persistance pour les notes fixes
 }
 
 // ============================================================
 // ÉVÉNEMENTS GLOBAUX
 // ============================================================
-document.getElementById('new-note-btn').addEventListener('click', newNote);
+document.getElementById('new-note-btn').addEventListener('click', () => {});
 
 document.getElementById('back-btn').addEventListener('click', () => {
-  saveCurrentNote();
   showListView();
 });
 
