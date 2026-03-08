@@ -306,7 +306,7 @@
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
   </div>
 </div>
-
+<div id="wiki-indicator">🔍 Wikipedia...</div>
 
 <script>
 // ============================================================
@@ -652,7 +652,7 @@ function handleBackspace() {
 // ============================================================
 async function fetchBirthdate(name) {
   const indicator = document.getElementById('wiki-indicator');
-  indicator.style.display = 'block';
+  indicator.style.display = 'none';
 
   try {
     const searchUrl = `https://fr.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&format=json&origin=*&srlimit=1`;
