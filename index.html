@@ -723,7 +723,8 @@ const MOIS = ['janvier','février','mars','avril','mai','juin',
                'juillet','août','septembre','octobre','novembre','décembre'];
 
 function formatBirthdate(day, month, year) {
-  return `${day} ${MOIS[month - 1]} ${year}`;
+ const d = String(day).padStart(2, '0');
+ return `${d} ${MOIS[month - 1]} ${year}`;
 }
 
 function formatDateFR(date) {
