@@ -160,11 +160,23 @@
   }
 
   .editor-actions svg {
-    width: 22px;
-    height: 22px;
-    fill: #ffcc00;
-    cursor: pointer;
-  }
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: #ffcc00;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  cursor: pointer;
+}
+
+.ok-btn {
+  color: #ffcc00;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 
   .editor-date {
     text-align: center;
@@ -284,16 +296,37 @@
 <!-- VUE EDITEUR -->
 <div id="note-editor-view">
   <div class="editor-header">
-    <div class="back-btn" id="back-btn">
-      <svg viewBox="0 0 11 18"><polyline points="10,1 1,9 10,17"/></svg>
-      Notes
-    </div>
-    <div class="editor-actions">
-      <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-      <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
-    </div>
+  <div class="back-btn" id="back-btn">
+    <svg viewBox="0 0 11 18"><polyline points="10,1 1,9 10,17"/></svg>
+    Retour
   </div>
-  <div class="editor-date" id="editor-date"></div>
+  <div class="editor-actions">
+    <!-- Annuler -->
+    <svg viewBox="0 0 24 24" title="Annuler">
+      <path d="M9 14L4 9l5-5"/>
+      <path d="M4 9h10.5a4.5 4.5 0 010 9H11" fill="none" stroke="#ffcc00" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    <!-- Rétablir -->
+    <svg viewBox="0 0 24 24" title="Rétablir">
+      <path d="M15 14l5-5-5-5"/>
+      <path d="M20 9H9.5a4.5 4.5 0 000 9H13" fill="none" stroke="#ffcc00" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    <!-- Partager -->
+    <svg viewBox="0 0 24 24" title="Partager">
+      <path d="M12 2v13M7 7l5-5 5 5" fill="none" stroke="#ffcc00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M20 14v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6" fill="none" stroke="#ffcc00" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    <!-- Plus d'options -->
+    <svg viewBox="0 0 24 24" title="Plus">
+      <circle cx="5" cy="12" r="1.5" fill="#ffcc00"/>
+      <circle cx="12" cy="12" r="1.5" fill="#ffcc00"/>
+      <circle cx="19" cy="12" r="1.5" fill="#ffcc00"/>
+    </svg>
+    <!-- OK -->
+    <span class="ok-btn" id="ok-btn">OK</span>
+  </div>
+</div>
+<div class="editor-date" id="editor-date"></div>
   <div class="editor-body" id="editor-body">
     <div id="display-area" tabindex="0"></div>
     <input id="hidden-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
